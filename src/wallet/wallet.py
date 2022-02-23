@@ -1,5 +1,4 @@
 import binascii
-
 import base58
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
