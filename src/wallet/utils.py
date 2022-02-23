@@ -1,6 +1,7 @@
+from hashlib import sha3_256
 import json
 
-from Crypto.Hash import RIPEMD160, SHA256
+from Crypto.Hash import RIPEMD160, SHA256, SHA3_256, SHA3_512
 
 
 def calculate_hash(data, hash_function: str = "sha256") -> str:
@@ -12,6 +13,14 @@ def calculate_hash(data, hash_function: str = "sha256") -> str:
         return h.hexdigest()
     if hash_function == "ripemd160":
         h = RIPEMD160.new()
+        h.update(data)
+        return h.hexdigest()
+    if hash_function == "sha3_256":
+        h = SHA3_256.new()
+        h.update(data)
+        return h.hexdigest()
+    if hash_function == "sha3_512":
+        h = SHA3_512.new()
         h.update(data)
         return h.hexdigest()
 
