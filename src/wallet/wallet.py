@@ -1,6 +1,6 @@
 import binascii
 import base58
-from Crypto.Hash import SHA256
+from Crypto.Hash import SHA256, SHA3_256, SHA3_512
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 

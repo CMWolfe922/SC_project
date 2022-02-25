@@ -32,7 +32,7 @@ def fill_set(list_of_nodes: list):
     return list_of_nodes
 
 
-def build_merkle_tree(node_data: [str]) -> Node:
+def build_merkle_tree(node_data: list(str)) -> Node:
     complete_set = fill_set(node_data)
     old_set_of_nodes = [Node(calculate_hash(data)) for data in complete_set]
     tree_depth = compute_tree_depth(len(old_set_of_nodes))
@@ -43,11 +43,13 @@ def build_merkle_tree(node_data: [str]) -> Node:
         for j in range(0, num_nodes, 2):
             child_node_0 = old_set_of_nodes[j]
             child_node_1 = old_set_of_nodes[j+1]
+
             new_node = Node(
                 value=calculate_hash(f"{child_node_0.value}{child_node_1.value}"),
                 left_child=child_node_0,
                 right_child=child_node_1
             )
+
             new_set_of_nodes.append(new_node)
         old_set_of_nodes = new_set_of_nodes
     return new_set_of_nodes[0]
