@@ -57,3 +57,7 @@ class StackScript(Stack):
         public_key_bytes = public_key.encode("utf-8")
         public_key_object = RSA.import_key(binascii.unhexlify(public_key_bytes))
         transaction_bytes = json.dumps(self.transaction_data, indent = 2).encode("utf-8")
+
+# For Script Execution: The node looks inside of the unlocking scripts
+# and locking scripts and executing the methods provided blindly.
+# I will implement those execution methods in my NodeTransaction class.
