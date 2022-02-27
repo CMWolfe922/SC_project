@@ -2,7 +2,7 @@ import binascii, json, copy
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
-
+from script import StackScript
 from utils import calculate_hash
 from node.block import Block
 from transaction_inputs import TransactionInput
@@ -34,19 +34,23 @@ class NodeTransaction:
     def validate_funds(self, sender_address: bytes, amount: int) -> bool:
         assert self.get_total_amount_in_inputs() == self.get_total_amount_in_outputs()
 
-        # sender_balance = 0
-        # current_block = self.blockchain
-        # while current_block:
-        #     if current_block.transaction_data["sender"] == sender_address:
-        #         sender_balance = sender_balance - current_block.transaction_data["amount"]
-        #     if current_block.transaction_data["receiver"] == sender_address:
-        #         sender_balance = sender_balance + current_block.transaction_data["amount"]
-        #     current_block = current_block.previous_block
-        # if amount <= sender_balance:
-        #     return True
-        # else:
-        #    return False
 
+    def execute_script(self, unlocking_script, locking_script):
+        unlocking_script_list = unlocking_script.split(" ")
+        locking_script_list = locking_script.split(" ")
+        stack_script = StackScript(self.transaction_data)
+        for element in unlocking_script_list:
+            if element.startswith("OP"):
+                class_method = getattr(StackScript, element.lower())
+                class_method(stack_script)
+            else:
+                stack_script.push(element)
+        for element in locking_script_list:
+            if element.startswith("OP"):
+                class_method = getattr(StackScript, element.lower())
+                class_method(stack_script)
+            else:
+                stack_script.push(element)
 
     def get_total_amount_in_inputs(self) -> int:
         total_in = 0
@@ -71,6 +75,12 @@ class NodeTransaction:
             if utxo_hash == current_block.transaction_hash:
                 return current_block.transaction_data
             current_block = current_block.previous_block
+
+    # scrolls through the blockchain until it finds the UTXO and returns
+    # its locking script.
+    def get_locking_script_from_utxo(self, utxo_hash: str, utxo_index: int):
+        transaction_data = self.get_transaction_from_utxo(utxo_hash)
+        return json.loads(transaction_data["outputs"][utxo_index])["locking_script"]
 
     # This will validate that each of the UTXO's receiver address
     # match the sender's public key

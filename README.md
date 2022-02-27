@@ -221,3 +221,111 @@ from node.script import StackScriptclass NodeTransaction:
             else:
                 stack_script.push(element)
 ```
+
+> After `execute_script`, I am going to create an empty stack, scroll through each element of each script and apply the methods to the stack.
+
+    - Also, modify the `validate` method so that the `execute_script` method is called for every transaction input.
+
+```python
+def validate(self):
+        for tx_input in self.inputs:
+            input_dict = json.loads(tx_input)
+            locking_script = self.get_locking_script_from_utxo(input_dict["transaction_hash"], input_dict["output_index"])
+            self.execute_script(input_dict["unlocking_script"], locking_script)
+```
+
+- for each input, the locking script is retrieved from the UTXO. To do so, we created a new method called `get_locking_script_from_utx`. This method scrolls through the blockchain until it finds the UTXO and returns its locking script.
+
+```python
+def get_locking_script_from_utxo(self, utxo_hash: str, utxo_index: int):
+        transaction_data = self.get_transaction_from_utxo(utxo_hash)
+        return json.loads(transaction_data["outputs"][utxo_index])["locking_script"]
+```
+
+#### Other Transaction Scripts
+---
+> Transaction scripts are at the core of every blockchain transaction. They allow secure validation of transactions and provide a framework to create complex transaction contracts. Validating transactions with the use of scripts allows for a variety of different transaction types to exist. *Below is a list of examples:*
+
+- **Pay-to-Public-Key-Hash (P2PKH)**: This is the most common execution script and it is the one used as an example above.
+
+```Script
+Unlocking script: <sig> <pubKey>
+Locking script: OP_DUP OP_HASH160 <Cafe Public Key Hash> OP_EQUAL OP_CHECKSIG
+```
+
+- **Pay-to-Public-Key (P2PK):** This is similar to P2PKH but it takes a whole lot more space because you have to know the whole public key of the person you want to send money to.
+
+```Script
+Unlocking script: <sig>
+Locking script: <pubKey> OP_CHECKSIG
+```
+
+- **Multi-signature:** These exist for when you need multiple people to approve a transaction. At least M out of N of those must provide signatures to unlock funds.
+
+```Script
+Unlocking script: OP_0 <Signature 1> <Signature 2>
+Locking script: M <Public Key 1> <Public Key 2> … <Public Key N> N CHECKMULTISIG
+```
+
+- **Pay-to-script-hash (P2SH):** This allows you to accept money from a client and only use the money if 'M out of N' partners approve the use of the funds. So kind of like a vote to use the funds. The locking script the client would have to use would be very long and complex. P2SH scripts are around to simplify complex transactions by hashing those complex scripts.
+
+```Script
+Unlocking script: Sig1 Sig2 redeem script
+Locking script: OP_HASH160 <Hash of redeem script> OP_EQUAL
+```
+---
+Now that The transaction scripts have been covered and the blockchain can validate transactions, it still isn't decentralized. If I turned my computer off it wouldn't work. The next section will go over decentralizing the network and creating a network that consists of multiple nodes that can communicate with each other via TCP/IP. Each node will store a copy of the blockchain and is responsible of validating transactions and broadcasting them to other nodes.
+
+---
+
+## THE NETWORK:
+---
+So far I have built three things: a blockchain, a node, and a wallet. The blockchain contains blocks and each block contains transaction data, a timestamp and a hash of the previous block. The node stores the blockchain and validates new transactions. The wallet builds new transactions and is capable of sending those to the node. As of now, all of that code is central. So only my computer can make transactions.
+
+- So this is where it begins to get more complicated. In this section, the code will begin broadcasting transactions to the network.
+
+### The Blockchain Network:
+---
+In bitcoin, satoshi nakomoto defines a transaction like this:
+1. New transactions are broadcast to all nodes.
+2. Each node collects new transactions into a block.
+3. Each node works on finding a difficult proof-of-work for its block.
+4. When a node finds a proof-of-work, it broadcasts the block to all nodes.
+5. Nodes accept the block only if all transactions in it are valid and not already spent.
+6. Nodes express their acceptance of the block by working on creating the next block in the chain, using the hash of the accepted block as the previous hash.
+
+- So instead of storing the ledger centrally, their is a network of nodes that store a copy of the blockchain. They work with each other in a competitive manner to process transactions and ultimately maintain the ledger.
+
+##### Transaction Validation:
+Validating the transaction is the first step in the transaction process. These transactions are sent by the wallet and received by the nodes that validate they're valid.
+
+- first, I need to make adjustments to my code to accomodate remote transaction validation. I will start with modifying the wallet code to allow it to **send** HTTP requests to a node. *So create two new classes in the wallet file*:
+
+```python
+class Node:
+
+    def __init__(self):
+        ip = "127.0.0.1"
+        port = 5000
+        self.base_url = f"http://{ip}:{port}/"
+
+    def send(self, transaction_data: dict) -> requests.Response:
+
+        url = f"{self.base_url}transactions"
+        req_return = requests.post(url, json=transaction_data)
+        req_return.raise_for_status()
+        return req_return
+
+class Wallet:
+
+    def __init__(self, owner: Owner):
+        self.owner = owner
+        self.node = Node()
+
+    def process_transaction(self, inputs: list(TransactionInput), outputs: list(TransactionOutput)) -> requests.Response:
+        transaction = Transaction(self.owner, inputs, outputs)
+        transaction.sign()
+        return self.node.send({"transaction":transaction.transaction_data})
+```
+
+> **Note:** I am adding a new library requirement `requests` which helps form and send HTTP requests. As a user of those classes you would create and send a transaction like so:

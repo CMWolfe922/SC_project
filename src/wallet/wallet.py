@@ -4,7 +4,7 @@ import base58
 from Crypto.Hash import SHA256, SHA3_256, SHA3_512
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
-
+import requests
 from wallet.utils import generate_transaction_data, convert_transaction_data_to_bytes, calculate_hash
 from node.transaction_inputs import TransactionInput
 from node.transaction_outputs import TransactionOutput
@@ -26,6 +26,7 @@ def initialize_wallet():
 
 
 class Transaction:
+
     def __init__(self, owner: Owner, inputs: list(TransactionInput),
     outputs: list(TransactionOutput)):
         self.owner = owner
@@ -57,3 +58,36 @@ class Transaction:
             "inputs": [i.to_json() for i in self.inputs],
             "outputs": [i.to_json() for i in self.outputs]
         }
+
+
+class Node:
+
+    def __init__(self):
+        ip = "127.0.0.1"
+        port = 5000
+        self.base_url = f"http://{ip}:{port}/"
+
+    def send(self, transaction_data: dict) -> requests.Response:
+
+        url = f"{self.base_url}transactions"
+        req_return = requests.post(url, json=transaction_data)
+        req_return.raise_for_status()
+        return req_return
+
+
+class Wallet:
+
+    def __init__(self, owner: Owner):
+        self.owner = owner
+        self.node = Node()
+
+    def process_transaction(self, inputs: list(TransactionInput), outputs: list(TransactionOutput)) -> requests.Response:
+        transaction = Transaction(self.owner, inputs, outputs)
+        transaction.sign()
+        return self.node.send({"transaction":transaction.transaction_data})
+
+
+# Send a transaction:
+utxo_0 = TransactionInput(transaction_hash="whatever_hash", output_index=0)
+output_0 = TransactionOutput(public_key_hash=b"whatever_public_key", amount=5)
+your_wallet.process_transaction(inputs=list(utxo_0), outputs=list(output_0))
