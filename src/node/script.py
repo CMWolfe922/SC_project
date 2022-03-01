@@ -1,6 +1,6 @@
 import json, binascii
 from Crypto.Hash import RSA
-from utils import calculate_hash
+from common.utils import calculate_hash
 # Since I am building a blockchain with python I can't use
 # the script language, so I have to build one. To do that
 # I have to first create a simple stack.
