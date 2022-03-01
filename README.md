@@ -456,14 +456,14 @@ class Wallet:
 ```
 
 > **Note:** I am adding a new library requirement `requests` which helps form and send HTTP requests. As a user of those classes you would create and send a transaction like so:
-
+---
 ```python
 utxo_0 = TransactionInput(transaction_hash="whatever_hash",
                           output_index=0)
 output_0 = TransactionOutput(public_key_hash=b"whatever_public_key", amount=5)
 your_wallet.process_transaction(inputs=[utxo_0], outputs=[output_0])
 ```
-
+---
 - I also need to modify my node's code so that it can receive HTTP requests (i.e. I need the node to have an API). To do this easily, I am going to use the Flask framework to build a restful API. [Click here for quick Flask tutorial](https://flask.palletsprojects.com/en/2.0.x/quickstart/)
 
 - Create a `main.py` file that takes care of accepting HTTP requests and routing them to the correct methods. SO for each POST to the `/transactions` endpoint, I will have a method called `validate_transaction` that will be executed. Inside of that method, I will use the "node's" `validate` and `validate_funds` methods.
@@ -533,3 +533,5 @@ class NodeTransaction:
             except requests.ConnectionError:
                 pass
 ```
+
+> At This point the code should send transactions from a wallet to a node via http, thave that transaction validated by the node and broadcasted to other nodes. Those two elements (wallet and node) don't have to be on the same laptop anymore. They can be anywhere as long as the wallet can reach the node via http.

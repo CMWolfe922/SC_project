@@ -87,7 +87,7 @@ class Wallet:
         return self.node.send({"transaction":transaction.transaction_data})
 
 
-# Send a transaction:
-utxo_0 = TransactionInput(transaction_hash="whatever_hash", output_index=0)
-output_0 = TransactionOutput(public_key_hash=b"whatever_public_key", amount=5)
-your_wallet.process_transaction(inputs=list(utxo_0), outputs=list(output_0))
+# # Send a transaction:
+# utxo_0 = TransactionInput(transaction_hash="whatever_hash", output_index=0)
+# output_0 = TransactionOutput(public_key_hash=b"whatever_public_key", amount=5)
+# your_wallet.process_transaction(inputs=list(utxo_0), outputs=list(output_0))
