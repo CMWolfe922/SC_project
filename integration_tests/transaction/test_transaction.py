@@ -1,5 +1,4 @@
-import pytest
-import requests
+import pytest, requests
 
 from blockchain_users.camille import private_key as camille_private_key
 from common.transaction_input import TransactionInput

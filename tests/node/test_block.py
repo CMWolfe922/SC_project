@@ -3,8 +3,8 @@ from datetime import datetime
 
 import pytest
 
-from node.block import Block
-from common.utils import calculate_hash, convert_transaction_data_to_bytes
+from src.node.block import Block
+from src.common.utils import calculate_hash, convert_transaction_data_to_bytes
 
 
 def generate_transaction_data(sender: bytes, receiver: bytes, amount: int) -> dict:
