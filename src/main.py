@@ -1,6 +1,6 @@
 from flask import Flask, request
 
-from src.node import NodeTransaction, TransactionException
+from node.node import NodeTransaction, TransactionException
 from initialize_blockchain import blockchain
 
 app = Flask(__name__)

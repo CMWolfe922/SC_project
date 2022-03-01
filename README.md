@@ -474,7 +474,7 @@ your_wallet.process_transaction(inputs=[utxo_0], outputs=[output_0])
 ```python
 from flask import Flask, request
 
-from src.node import NodeTransaction, TransactionException
+from node.node import NodeTransaction, TransactionException
 from initialize_blockchain import blockchain
 
 app = Flask(__name__)
