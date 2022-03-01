@@ -2,6 +2,133 @@
 ---
 > I didn't start taking notes from the tutorial until part 5, so I will need to go back and add the notes I need from parts 1-4. This way I know the purpose of each function and method created as well as the role they play overall. It will also, give me notes to reference while developing a plan to evolve the implementation.
 
+## DOUBLE ENTRY BOOKKEPING AND UTXO's:
+> This section will deep dive into how transactions are actually stored on the blockchain (which is via double entry bookkeeping). And while doing this it will cover the subject of Unspent Transaction Outputs (UTXO's)
+---
+
+- This is the wikipedia definition:
+*__Double-entry bookkeeping__, in accounting, is a system of book keeping where every entry to an account requires a corresponding and opposite entry to a different account. The double-entry system has two equal and corresponding sides known as debit and credit. The left-hand side is debit and the right-hand side is credit.*
+
+- The reason this makes sense is because there really are two different effects for every transaction. An example of this would be; if you are buying a car. You give money and you receive a car. Those are two distinct things that will affect your business differently. Now if we look at the only equation in accounting (shown below), buying a $1,000 car here will increase both your __assets__ and your __liabilities__ (accounts payable) by $1000 and both sides of the accounting equation remain the same:
+    - Assets = Liabilities + Equity
+
+Most businesses use double-entry bbookkeeping for their accounting needs mainly because it makes it more simple to keep track of assets and liabilities.
+
+__Double Entry Bookkeping In Blockchain__
+Up to now I have used single entry in the blockchain I built (i.e. one entry per transaction). Our entries looked something like "sender, receiver, amount". But double-entry bookkeeping is useful, so how can it relate to the transactions in the blockchain?
+
+- Quote from 'Mastering Bitcoin':
+> In simple terms, each transaction contains one or more “inputs,” which are debits against a bitcoin account. On the other side of the transaction, there are one or more “outputs,” which are credits added to a bitcoin account.
+
+- This would now make the transactions contain two sections: inputs and outputs. So if I used the example; Camille has 15 and she wants to send 5 to Albert, *This would be 1 input and 2 outputs*:
+
+    - Inputs: _Input #1_ __Address__: Camille __Amount__: 15
+    - Outputs: _Output #1_ __Address__: Albert __Amount__: 5
+    - Outputs: _Output #2_ __Address__: Camille __Amount__: 10
+
+---
+##### Transaction Forms:
+This new format will allow my transactions to have any number of inputs and outputs, and these are some common forms:
+
+- __Common Transaction (1 input, 2 outputs):__ This is what I just showed above where Person 1 sends money to Person 2 and there's change.
+
+- __Aggregation Transaction (N inputs, 1 output):__ If person 1 has received money through multiple transactions and he want to simplify his assets, he might want to aggregate them (just like you would exchange your pocket change against a 20$ bill).
+
+- __Distributing Transactions (1 input, N outputs):__ If person 1 wants to send money to all of his friends for example, he would use a distributing transaction.
+
+
+##### Unspent Transaction Outputs (UTXO):
+This will complicate things. But lets consider that inputs for transactions are a collection of previously unspent transaction outputs (UTXO). This is easy to commpare with real cash: _Person 1 gives you $10, Person 2 gives you $20 and you want to buy a t-shirt for $25, You would have to use your two unspent transaction outputs (your two bills) to produce a new transaction to the t-shirt shop. At this point you will give your $20 bill and your $10 bill to the shop and you will get a $5 bill in change. This is the same as what happened with Albert, Bertrand and Camille.
+
+> So this means that transaction inputs contain a past transaction's hash and the output index corresponding to the UTXO. So to apply this to my python code, I have to create two new classes that will help me form my transactions. And the first one is for `transaction_inputs.py`
+
+```python
+class TransactionInput:
+    def __init__(self, transaction_hash: str, output_index: int, public_key: str = "", signature: str = ""):
+        self.transaction_hash = transaction_hash
+        self.output_index = output_index
+        self.public_key = public_key
+        self.signature = signature
+
+    def to_json(self, with_signature_and_public_key: bool = True) -> str:
+        if with_signature_and_public_key:
+            return json.dumps({
+                "transaction_hash": self.transaction_hash,
+                "output_index": self.output_index,
+                "public_key": self.public_key,
+                "signature": self.signature
+            })
+        else:
+            return json.dumps({
+                "transaction_hash": self.transaction_hash,
+                "output_index": self.output_index
+            })
+```
+
+> And the second one it for `transaction_ouputs.py`
+
+```python
+class TransactionOutput:
+    def __init__(self, public_key_hash: str, amount: int):
+        self.amount = amount
+        self.public_key_hash = public_key_hash
+
+    def to_json(self) -> str:
+        return json.dumps({
+            "amount": self.amount,
+            "public_key_hash": self.public_key_hash
+        })
+```
+
+- Now I have to update these methods inside my wallet's `Transaction` class to reflect these changes:
+
+```python
+import json
+
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
+
+from transaction.transaction_input import TransactionInput
+from transaction.transaction_output import TransactionOutputclass Transaction:
+    def __init__(self, owner: Owner, inputs: [TransactionInput], outputs: [TransactionOutput]):
+        self.owner = owner
+        self.inputs = inputs
+        self.outputs = outputs
+
+    def sign_transaction_data(self):
+        transaction_dict = {
+            "inputs": [tx_input.to_json(with_signature_and_public_key=False) for tx_input in self.inputs],
+            "outputs": [tx_output.to_json() for tx_output in self.outputs]
+        }
+        transaction_bytes = json.dumps(transaction_dict, indent=2).encode('utf-8')
+        hash_object = SHA256.new(transaction_bytes)
+        signature = pkcs1_15.new(self.owner.private_key).sign(hash_object)
+        return signature
+
+    def sign(self):
+        signature_hex = binascii.hexlify(self.sign_transaction_data()).decode("utf-8")
+        for transaction_input in self.inputs:
+            transaction_input.signature = signature_hex
+            transaction_input.public_key = self.owner.public_key_hex
+
+    def send_to_nodes(self):
+        return {
+            "inputs": [i.to_json() for i in self.inputs],
+            "outputs": [i.to_json() for i in self.outputs]
+        }
+```
+
+> So now lets say that Camille wants to send 5 to Bertrand, here is how her wallet would do it:
+
+```python
+utxo_0 = TransactionInput(transaction_hash=blockchain.transaction_hash, output_index=0)
+output_0 = TransactionOutput(public_key_hash=bertrand_wallet.public_key_hash, amount=5)
+transaction = Transaction(camille_wallet, inputs=[utxo_0], outputs=[output_0])
+transaction.sign()
+```
+
+
+
 ## TRANSACTION SCRIPTS:
 > Basically, up until this point validating transactions was done by using cryptography to spend some of the unspent transaction outputs. To do this, I would present proof that the amount was correct/valid using a signature. **BUT** *to allow for this type of transaction as well as much more complex ones to take place, I need to create a "transaction script" like bitcoin and other cryptocurrencies use*. The scripts are used to define the contract between sender and receiver.
 
@@ -329,3 +456,80 @@ class Wallet:
 ```
 
 > **Note:** I am adding a new library requirement `requests` which helps form and send HTTP requests. As a user of those classes you would create and send a transaction like so:
+
+```python
+utxo_0 = TransactionInput(transaction_hash="whatever_hash",
+                          output_index=0)
+output_0 = TransactionOutput(public_key_hash=b"whatever_public_key", amount=5)
+your_wallet.process_transaction(inputs=[utxo_0], outputs=[output_0])
+```
+
+- I also need to modify my node's code so that it can receive HTTP requests (i.e. I need the node to have an API). To do this easily, I am going to use the Flask framework to build a restful API. [Click here for quick Flask tutorial](https://flask.palletsprojects.com/en/2.0.x/quickstart/)
+
+- Create a `main.py` file that takes care of accepting HTTP requests and routing them to the correct methods. SO for each POST to the `/transactions` endpoint, I will have a method called `validate_transaction` that will be executed. Inside of that method, I will use the "node's" `validate` and `validate_funds` methods.
+- Then if there is an _error_ then __status code 400__ will show up, IF __there is no__ _error then status code 200_ will show.
+
+    -Code for flask app:
+
+```python
+from flask import Flask, request
+
+from src.node import NodeTransaction, TransactionException
+from initialize_blockchain import blockchain
+
+app = Flask(__name__)
+
+blockchain_base = blockchain()
+
+@app.route("/transactions", methods=['POST'])
+def validate_transaction():
+    content = request.json
+    try:
+        node = NodeTransaction(blockchain_base)
+        node.receive(transaction=content["transaction"])
+        node.validate()
+        node.validate_funds()
+        node.broadcast()
+    except TransactionException as transaction_exception:
+        return f"{transaction_exception}", 400
+    return "Transaction Success!", 200
+
+```
+
+> __To start the flask app, go to terminal and run this:__
+
+`set FLASK_APP=src/main.py`
+`flask run`
+
+_Note that you can change the HTTP port that your flask app listens on by adding the `—- port` option to `flask run` command. Example: `flask run —-port 5002`_
+
+    - This can also enable you to create multiple instances of the app on your laptop if each has a different port.
+
+--> After the node validates the transaction it will send it to other nodes that it knows about.
+
+> So, part of the node code will be another class called `OtherNode`
+
+```python
+class OtherNode:
+    def __init__(self, ip: str, port: int):
+        self.base_url = f"http://{ip}:{port}/"
+
+    def send(self, transaction_data: dict) -> requests.Response:
+        url = f"{self.base_url}transactions"
+        req_return = requests.post(url, json=transaction_data)
+        req_return.raise_for_status()
+        return req_return
+```
+
+> After creating the new node class, I need to add a `broadcast` method to `NodeTransaction` class that will take care of broadcasting the transaction data to other nodes. This method is called right after transactions are validated.
+
+```python
+class NodeTransaction:
+    def broadcast(self):
+        node_list = [OtherNode("127.0.0.1", 5001), OtherNode("127.0.0.1", 5002)]
+        for node in node_list:
+            try:
+                node.send(self.transaction_data)
+            except requests.ConnectionError:
+                pass
+```

@@ -3,10 +3,10 @@ from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 from script import StackScript
-from utils import calculate_hash
+from common.utils import calculate_hash
 from node.block import Block
-from transaction_inputs import TransactionInput
-from transaction_outputs import TransactionOutput
+from common.transaction_inputs import TransactionInput
+from common.transaction_outputs import TransactionOutput
 
 class NodeTransaction:
 

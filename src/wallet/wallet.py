@@ -6,8 +6,8 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import pkcs1_15
 import requests
 from wallet.utils import generate_transaction_data, convert_transaction_data_to_bytes, calculate_hash
-from node.transaction_inputs import TransactionInput
-from node.transaction_outputs import TransactionOutput
+from common.transaction_inputs import TransactionInput
+from common.transaction_outputs import TransactionOutput
 
 class Owner:
     def __init__(self, private_key: RSA.RsaKey, public_key: bytes, bitcoin_address: bytes):
