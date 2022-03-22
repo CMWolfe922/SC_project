@@ -1,9 +1,13 @@
-import json, binascii
-from Crypto.Hash import RSA
+import json
+import binascii
+from Crypto.Hash import SHA256
+from Crypto.PublicKey import RSA
+from Crypto.Signature import pkcs1_15
 from common.utils import calculate_hash
 # Since I am building a blockchain with python I can't use
 # the script language, so I have to build one. To do that
 # I have to first create a simple stack.
+
 
 class Stack:
     def __init__(self):
@@ -18,6 +22,7 @@ class Stack:
 # Then build another class called StackScript that inherits
 # from Stack. It will contain methods that correspond to
 # the methods in Stack
+
 
 class StackScript(Stack):
 
@@ -39,7 +44,8 @@ class StackScript(Stack):
     # This method hashes the last element of the stack (the public key) twice
     def op_hash160(self):
         public_key = self.pop()
-        self.push(calculate_hash(calculate_hash(public_key, hash_function="sha256"), hash_function="ripemd160"))
+        self.push(calculate_hash(calculate_hash(
+            public_key, hash_function="sha256"), hash_function="ripemd160"))
 
     # This method validates that the last two elements of the stack
     # are equal to each other
@@ -55,8 +61,13 @@ class StackScript(Stack):
         signature = self.pop()
         signature_decoded = binascii.unhexlify(signature.encode("utf-8"))
         public_key_bytes = public_key.encode("utf-8")
-        public_key_object = RSA.import_key(binascii.unhexlify(public_key_bytes))
-        transaction_bytes = json.dumps(self.transaction_data, indent = 2).encode("utf-8")
+        public_key_object = RSA.import_key(
+            binascii.unhexlify(public_key_bytes))
+        transaction_bytes = json.dumps(
+            self.transaction_data, indent=2).encode("utf-8")
+        transaction_hash = SHA256.new(transaction_bytes)
+        pkcs1_15.new(public_key_object).verify(
+            transaction_hash, signature_decoded)
 
 # For Script Execution: The node looks inside of the unlocking scripts
 # and locking scripts and executing the methods provided blindly.

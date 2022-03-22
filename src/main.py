@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 blockchain_base = blockchain()
 
+
 @app.route("/transactions", methods=['POST'])
 def validate_transaction():
     content = request.json
@@ -17,5 +18,5 @@ def validate_transaction():
         node.validate_funds()
         node.broadcast()
     except TransactionException as transaction_exception:
-        return f"{transaction_exception}", 400
-    return "Transaction Success!", 200
+        return f'{transaction_exception}', 400
+    return "Transaction success", 200
