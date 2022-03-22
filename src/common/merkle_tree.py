@@ -34,7 +34,7 @@ def fill_set(list_of_nodes: list):
     return list_of_nodes
 
 
-def build_merkle_tree(node_data: [str]) -> Node:
+def build_merkle_tree(node_data: list(str)) -> Node:
     complete_set = fill_set(node_data)
     old_set_of_nodes = [Node(calculate_hash(str(data)))
                         for data in complete_set]
