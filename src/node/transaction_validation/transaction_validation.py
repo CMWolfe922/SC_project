@@ -1,7 +1,13 @@
-import json
+import copy
+
 import requests
-from .script import StackScript
-from .block import Block
+
+from common.block import Block
+from common.io_mem_pool import get_transactions_from_memory, store_transactions_in_memory
+from common.node import Node
+from node.transaction_validation.script import StackScript
+
+FILENAME = "src/doc/mem_pool"
 
 
 class TransactionException(Exception):
@@ -10,52 +16,35 @@ class TransactionException(Exception):
         self.message = message
 
 
-class OtherNode:
-
+class OtherNode(Node):
     def __init__(self, ip: str, port: int):
-        self.base_url = f"http://{ip}:{port}/"
+        super().__init__(ip, port)
 
-    def send(self, transaction_data: dict) -> requests.Response:
-        url = f"{self.base_url}transactions"
-        req_return = requests.post(url, json=transaction_data)
-        req_return.raise_for_status()
-        return req_return
+    def send_transaction(self, transaction_data: dict) -> requests.Response:
+        return self.post("transactions", transaction_data)
 
 
-class NodeTransaction:
-
+class Transaction:
     def __init__(self, blockchain: Block):
         self.blockchain = blockchain
         self.transaction_data = {}
-        self.inputs = ""
-        self.outputs = ""
+        self.inputs = []
+        self.outputs = []
+        self.is_valid = False
+        self.is_funds_sufficient = False
 
     def receive(self, transaction: dict):
         self.transaction_data = transaction
         self.inputs = transaction["inputs"]
         self.outputs = transaction["outputs"]
 
-    def get_transaction_from_utxo(self, utxo_hash: str) -> dict:
-        current_block = self.blockchain
-        while current_block:
-            if utxo_hash == current_block.transaction_hash:
-                return current_block.transaction_data
-            current_block = current_block.previous_block
-
-    # scrolls through the blockchain until it finds the UTXO and returns
-    # its locking script.
-    def get_locking_script_from_utxo(self, utxo_hash: str, utxo_index: int):
-        transaction_data = self.get_transaction_from_utxo(utxo_hash)
-        if transaction_data:
-            return json.loads(transaction_data["outputs"][utxo_index]["locking_script"])
-        else:
-            raise TransactionException(
-                f"{utxo_hash}:{utxo_index}", "UTXO hash/output index combination not valid")
-
     def execute_script(self, unlocking_script, locking_script):
         unlocking_script_list = unlocking_script.split(" ")
         locking_script_list = locking_script.split(" ")
-        stack_script = StackScript(self.transaction_data)
+        transaction_data = copy.deepcopy(self.transaction_data)
+        if "transaction_hash" in transaction_data:
+            transaction_data.pop("transaction_hash")
+        stack_script = StackScript(transaction_data)
         for element in unlocking_script_list:
             if element.startswith("OP"):
                 class_method = getattr(StackScript, element.lower())
@@ -70,47 +59,49 @@ class NodeTransaction:
                 stack_script.push(element)
 
     def validate(self):
+
         for tx_input in self.inputs:
-            input_dict = json.loads(tx_input)
-            transaction_hash = input_dict["transaction_hash"]
-            output_index = input_dict["output_index"]
-            locking_script = self.get_locking_script_from_utxo(
-                transaction_hash, output_index)
+            transaction_hash = tx_input["transaction_hash"]
+            output_index = tx_input["output_index"]
+            try:
+                locking_script = self.blockchain.get_locking_script_from_utxo(
+                    transaction_hash, output_index)
+            except Exception:
+                raise TransactionException(
+                    f"{transaction_hash}:{output_index}", "Could not find locking script for utxo")
             try:
                 self.execute_script(
-                    input_dict["unlocking_script"], locking_script)
+                    tx_input["unlocking_script"], locking_script)
+                self.is_valid = True
             except Exception:
+                print('Transaction script validation failed')
                 raise TransactionException(
                     f"UTXO ({transaction_hash}:{output_index})", "Transaction script validation failed")
 
     def get_total_amount_in_inputs(self) -> int:
         total_in = 0
         for tx_input in self.inputs:
-            input_dict = json.loads(tx_input)
-            transaction_data = self.get_transaction_from_utxo(
-                input_dict["transaction_hash"])
-            utxo_amount = json.loads(
-                transaction_data["outputs"][input_dict["output_index"]])["amount"]
+            transaction_data = self.blockchain.get_transaction_from_utxo(
+                tx_input["transaction_hash"])
+            utxo_amount = transaction_data["outputs"][tx_input["output_index"]]["amount"]
             total_in = total_in + utxo_amount
         return total_in
 
     def get_total_amount_in_outputs(self) -> int:
         total_out = 0
         for tx_output in self.outputs:
-            output_dict = json.loads(tx_output)
-            amount = output_dict["amount"]
+            amount = tx_output["amount"]
             total_out = total_out + amount
         return total_out
 
-    # This adds up all the totals from the referenced UTXO's and
-    # validates that they match the amounts in the transaction output
-    def validate_funds(self, sender_address: bytes, amount: int) -> bool:
+    def validate_funds(self):
         inputs_total = self.get_total_amount_in_inputs()
         outputs_total = self.get_total_amount_in_outputs()
         try:
             assert inputs_total == outputs_total
-
+            self.is_funds_sufficient = True
         except AssertionError:
+            print('Transaction inputs and outputs did not match')
             raise TransactionException(f"inputs ({inputs_total}), outputs ({outputs_total})",
                                        "Transaction inputs and outputs did not match")
 
@@ -119,6 +110,12 @@ class NodeTransaction:
                      OtherNode("127.0.0.1", 5002)]
         for node in node_list:
             try:
-                node.send(self.transaction_data)
+                node.send_transaction(self.transaction_data)
             except requests.ConnectionError:
                 pass
+
+    def store(self):
+        if self.is_valid and self.is_funds_sufficient:
+            current_transactions = get_transactions_from_memory()
+            current_transactions.append(self.transaction_data)
+            store_transactions_in_memory(current_transactions)

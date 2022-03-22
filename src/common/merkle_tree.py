@@ -1,3 +1,4 @@
+import json
 import math
 
 from common.utils import calculate_hash
@@ -25,31 +26,40 @@ def fill_set(list_of_nodes: list):
     total_number_of_leaves = 2**compute_tree_depth(current_number_of_leaves)
     if current_number_of_leaves % 2 == 0:
         for i in range(current_number_of_leaves, total_number_of_leaves, 2):
-            list_of_nodes = list_of_nodes + [list_of_nodes[-2], list_of_nodes[-1]]
+            list_of_nodes = list_of_nodes + \
+                [list_of_nodes[-2], list_of_nodes[-1]]
     else:
         for i in range(current_number_of_leaves, total_number_of_leaves):
             list_of_nodes.append(list_of_nodes[-1])
     return list_of_nodes
 
 
-def build_merkle_tree(node_data: list(str)) -> Node:
+def build_merkle_tree(node_data: [str]) -> Node:
     complete_set = fill_set(node_data)
-    old_set_of_nodes = [Node(calculate_hash(data)) for data in complete_set]
+    old_set_of_nodes = [Node(calculate_hash(str(data)))
+                        for data in complete_set]
     tree_depth = compute_tree_depth(len(old_set_of_nodes))
-
+    if tree_depth == 0:
+        return Node(value=calculate_hash(str(node_data[0])))
     for i in range(0, tree_depth):
         num_nodes = 2**(tree_depth-i)
         new_set_of_nodes = []
         for j in range(0, num_nodes, 2):
             child_node_0 = old_set_of_nodes[j]
             child_node_1 = old_set_of_nodes[j+1]
-
             new_node = Node(
-                value=calculate_hash(f"{child_node_0.value}{child_node_1.value}"),
+                value=calculate_hash(
+                    f"{child_node_0.value}{child_node_1.value}"),
                 left_child=child_node_0,
                 right_child=child_node_1
             )
-
             new_set_of_nodes.append(new_node)
         old_set_of_nodes = new_set_of_nodes
     return new_set_of_nodes[0]
+
+
+def get_merkle_root(transactions: list) -> str:
+    transactions_bytes = [json.dumps(transaction, indent=2).encode(
+        'utf-8') for transaction in transactions]
+    merkle_tree = build_merkle_tree(transactions_bytes)
+    return merkle_tree.value
