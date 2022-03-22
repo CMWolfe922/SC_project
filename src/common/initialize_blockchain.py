@@ -26,7 +26,7 @@ def initialize_blockchain():
     transaction_0 = Transaction([input_0], [output_0])
     block_header_0 = BlockHeader(previous_block_hash="1111",
                                  timestamp=timestamp_0,
-                                 noonce=2,
+                                 nonce=2,
                                  merkle_root=get_merkle_root([transaction_0.transaction_data]))
     block_0 = Block(
         transactions=[transaction_0.transaction_data],
@@ -45,7 +45,7 @@ def initialize_blockchain():
     block_header_1 = BlockHeader(
         previous_block_hash=block_0.block_header.hash,
         timestamp=timestamp_1,
-        noonce=3,
+        nonce=3,
         merkle_root=get_merkle_root([transaction_1.transaction_data])
     )
     block_1 = Block(
@@ -63,7 +63,7 @@ def initialize_blockchain():
     block_header_2 = BlockHeader(
         previous_block_hash=block_1.block_header.hash,
         timestamp=timestamp_2,
-        noonce=4,
+        nonce=4,
         merkle_root=get_merkle_root([transaction_2.transaction_data])
     )
     block_2 = Block(
@@ -84,7 +84,7 @@ def initialize_blockchain():
     block_header_3 = BlockHeader(
         previous_block_hash=block_2.block_header.hash,
         timestamp=timestamp_3,
-        noonce=5,
+        nonce=5,
         merkle_root=get_merkle_root([transaction_3.transaction_data])
     )
     block_3 = Block(

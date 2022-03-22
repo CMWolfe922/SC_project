@@ -4,11 +4,11 @@ from common.utils import calculate_hash
 
 
 class BlockHeader:
-    def __init__(self, previous_block_hash: str, timestamp: float, noonce: int, merkle_root: str, hash: str = ""):
+    def __init__(self, previous_block_hash: str, timestamp: float, nonce: int, merkle_root: str, hash: str = ""):
         self.previous_block_hash = previous_block_hash
         self.merkle_root = merkle_root
         self.timestamp = timestamp
-        self.noonce = noonce
+        self.nonce = nonce
         self.hash = self.get_hash()
 
     def __eq__(self, other):
@@ -16,7 +16,7 @@ class BlockHeader:
             assert self.previous_block_hash == other.previous_block_hash
             assert self.merkle_root == other.merkle_root
             assert self.timestamp == other.timestamp
-            assert self.noonce == other.noonce
+            assert self.nonce == other.nonce
             assert self.hash == other.hash
             return True
         except AssertionError:
@@ -26,7 +26,7 @@ class BlockHeader:
         header_data = {"previous_block_hash": self.previous_block_hash,
                        "merkle_root": self.merkle_root,
                        "timestamp": self.timestamp,
-                       "noonce": self.noonce}
+                       "nonce": self.nonce}
         return calculate_hash(json.dumps(header_data))
 
     @property
@@ -35,7 +35,7 @@ class BlockHeader:
             "previous_block_hash": self.previous_block_hash,
             "merkle_root": self.merkle_root,
             "timestamp": self.timestamp,
-            "noonce": self.noonce,
+            "nonce": self.nonce,
             "hash": self.hash
         }
 
@@ -50,7 +50,7 @@ class BlockHeader:
 class Block:
     def __init__(
             self,
-            transactions: [dict],
+            transactions: list(dict),
             block_header: BlockHeader,
             previous_block=None,
     ):
