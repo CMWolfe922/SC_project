@@ -1,12 +1,14 @@
 import json
 import requests
-from node.script import StackScript
-from node.block import Block
+from .script import StackScript
+from .block import Block
+
 
 class TransactionException(Exception):
     def __init__(self, expression, message):
         self.expression = expression
         self.message = message
+
 
 class OtherNode:
 
@@ -18,6 +20,7 @@ class OtherNode:
         req_return = requests.post(url, json=transaction_data)
         req_return.raise_for_status()
         return req_return
+
 
 class NodeTransaction:
 
@@ -46,8 +49,8 @@ class NodeTransaction:
         if transaction_data:
             return json.loads(transaction_data["outputs"][utxo_index]["locking_script"])
         else:
-            raise TransactionException(f"{utxo_hash}:{utxo_index}", "UTXO hash/output index combination not valid")
-
+            raise TransactionException(
+                f"{utxo_hash}:{utxo_index}", "UTXO hash/output index combination not valid")
 
     def execute_script(self, unlocking_script, locking_script):
         unlocking_script_list = unlocking_script.split(" ")
@@ -71,19 +74,24 @@ class NodeTransaction:
             input_dict = json.loads(tx_input)
             transaction_hash = input_dict["transaction_hash"]
             output_index = input_dict["output_index"]
-            locking_script = self.get_locking_script_from_utxo(transaction_hash, output_index)
+            locking_script = self.get_locking_script_from_utxo(
+                transaction_hash, output_index)
             try:
-                self.execute_script(input_dict["unlocking_script"], locking_script)
+                self.execute_script(
+                    input_dict["unlocking_script"], locking_script)
             except Exception:
-                raise TransactionException(f"UTXO ({transaction_hash}:{output_index})", "Transaction script validation failed")
+                raise TransactionException(
+                    f"UTXO ({transaction_hash}:{output_index})", "Transaction script validation failed")
 
     def get_total_amount_in_inputs(self) -> int:
         total_in = 0
         for tx_input in self.inputs:
             input_dict = json.loads(tx_input)
-            transaction_data = self.get_transaction_from_utxo(input_dict["transaction_hash"])
-            utxo_amount = json.loads(transaction_data["outputs"][input_dict["output_index"]])["amount"]
-            total_in  = total_in + utxo_amount
+            transaction_data = self.get_transaction_from_utxo(
+                input_dict["transaction_hash"])
+            utxo_amount = json.loads(
+                transaction_data["outputs"][input_dict["output_index"]])["amount"]
+            total_in = total_in + utxo_amount
         return total_in
 
     def get_total_amount_in_outputs(self) -> int:
@@ -104,10 +112,11 @@ class NodeTransaction:
 
         except AssertionError:
             raise TransactionException(f"inputs ({inputs_total}), outputs ({outputs_total})",
-                                        "Transaction inputs and outputs did not match")
+                                       "Transaction inputs and outputs did not match")
 
     def broadcast(self):
-        node_list = [OtherNode("127.0.0.1", 5001), OtherNode("127.0.0.1", 5002)]
+        node_list = [OtherNode("127.0.0.1", 5001),
+                     OtherNode("127.0.0.1", 5002)]
         for node in node_list:
             try:
                 node.send(self.transaction_data)
